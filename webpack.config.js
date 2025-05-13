@@ -5,6 +5,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
+
 const devServer = (isDev) => !isDev
     ? {}
     : {
@@ -30,7 +31,16 @@ module.exports = ({ development }) => ({
     plugins: [
         ...esLintPlugin(development),
         new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' }),
-        new HtmlWebpackPlugin({ template: './src/index.html' }),
+        new HtmlWebpackPlugin({
+            title: 'Home',
+            filename: 'index.html',
+            template: './src/index.html'
+        }),
+        new HtmlWebpackPlugin({
+            title: 'HTML-структура',
+            filename: 'pages/html.html',
+            template: './src/pages/html.html'
+        }),
         new CopyPlugin({
             patterns: [{
                 from: 'public',
@@ -64,7 +74,7 @@ module.exports = ({ development }) => ({
             }
         ]
     },
-    
+
     resolve: {
         extensions: ['.js']
     },
