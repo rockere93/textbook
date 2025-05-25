@@ -1,5 +1,7 @@
+const fs = require('fs');
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const HtmlWebpackInjector = require('html-webpack-injector');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
@@ -17,6 +19,25 @@ const devServer = (isDev) => !isDev
         }
     };
 
+const generatePlugins = () => {
+  const pages = ['html', 'about']; // явный список страниц
+  
+  return pages.map(page => {
+    const templatePath = `./src/pages/${page}.html`;
+    
+    if (!fs.existsSync(templatePath)) {
+      console.warn(`Template ${templatePath} not found!`);
+      return null; // будет отфильтровано .filter(Boolean)
+    }
+    
+    return new HtmlWebpackPlugin({
+      filename: `/pages/${page}.html`,
+      template: templatePath,
+      inject: true
+    });
+  }).filter(Boolean);
+};
+    
 const esLintPlugin = (isDev) => isDev ? [] : [new ESLintPlugin({ extensions: ['js'] })];
 process.traceDeprecation = true;
 module.exports = ({ development }) => ({
@@ -36,11 +57,7 @@ module.exports = ({ development }) => ({
             filename: 'index.html',
             template: './src/index.html'
         }),
-        new HtmlWebpackPlugin({
-            title: 'HTML-структура',
-            filename: 'pages/html.html',
-            template: './src/pages/html.html'
-        }),
+        ...generatePlugins(),
         new CopyPlugin({
             patterns: [{
                 from: 'public',
