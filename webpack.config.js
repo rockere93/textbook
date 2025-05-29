@@ -1,82 +1,87 @@
 const fs = require('fs');
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const HtmlWebpackInjector = require('html-webpack-injector');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
-
-const devServer = (isDev) => !isDev
-    ? {}
-    : {
-        devServer: {
-            open: true,
-            hot: true,
-            port: 8080
-
-        }
-    };
-
-const generatePlugins = () => {
-  const pages = ['html', 'about']; // явный список страниц
+// Функция для генерации плагинов с учетом режима
+const generatePlugins = (isDev) => {
+  const pages = ['html', 'about'];
   
   return pages.map(page => {
-    const templatePath = `./src/pages/${page}.html`;
-    
-    if (!fs.existsSync(templatePath)) {
-      console.warn(`Template ${templatePath} not found!`);
-      return null; // будет отфильтровано .filter(Boolean)
+    const templatePathContent = path.resolve(__dirname, `src/pages/${page}.html`);
+    const templatePathHeader = path.resolve(__dirname, 'src/templates/header.html');
+    const templatePathFooter = path.resolve(__dirname, 'src/templates/footer.html');
+
+    if (!fs.existsSync(templatePathContent)) {
+      console.warn(`Template ${templatePathContent} not found!`);
+      return null;
     }
     
+    const pageContent = fs.readFileSync(templatePathContent, 'utf-8');
+    const pageHeader = fs.readFileSync(templatePathHeader, 'utf-8');
+    const pageFooter = fs.readFileSync(templatePathFooter, 'utf-8');
+    const title = page.charAt(0).toUpperCase() + page.slice(1);
+    
+    const tempTemplate = `
+      <!DOCTYPE html>
+      <html lang="ru">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${title}</title>
+      </head>
+      <body>
+          ${pageHeader}
+          <main>
+              ${pageContent}
+          </main>
+          ${pageFooter}
+      </body>
+      </html>
+    `;
+
     return new HtmlWebpackPlugin({
-      filename: `/pages/${page}.html`,
-      template: templatePath,
-      inject: true
+      filename: `${page}.html`,
+      templateContent: tempTemplate,
+      chunks: ['main'],
+      inject: true,
+      minify: !isDev
     });
   }).filter(Boolean);
 };
-    
-const esLintPlugin = (isDev) => isDev ? [] : [new ESLintPlugin({ extensions: ['js'] })];
-process.traceDeprecation = true;
-module.exports = ({ development }) => ({
-    mode: development ? 'development' : 'production',
-    devtool: development ? 'inline-source-map' : false,
+
+module.exports = (env) => {
+  const isDev = env.development;
+  
+  return {
+    mode: isDev ? 'development' : 'production',
+    devtool: isDev ? 'inline-source-map' : false,
     entry: './src/index.js',
     output: {
         filename: 'bundle.js',
         path: path.resolve(__dirname, 'dist'),
+        publicPath: '/',
         assetModuleFilename: 'assets/[hash][ext]'
     },
     plugins: [
-        ...esLintPlugin(development),
-        new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' }),
-        new HtmlWebpackPlugin({
-            title: 'Home',
-            filename: 'index.html',
-            template: './src/index.html'
+        ...(isDev ? [] : [new ESLintPlugin({ extensions: ['js'] })]),
+        new MiniCssExtractPlugin({ 
+            filename: isDev ? '[name].css' : '[name].[contenthash].css'
         }),
-        ...generatePlugins(),
+        ...generatePlugins(isDev),
         new CopyPlugin({
             patterns: [{
                 from: 'public',
                 noErrorOnMissing: true
             }]
         }),
-        new CleanWebpackPlugin({ cleanStaleWebpackAssets: false })
+        ...(isDev ? [] : [new CleanWebpackPlugin({ cleanStaleWebpackAssets: false })])
     ],
     module: {
         rules: [
-            {
-                test: /\.html$/,
-                use: [
-                    {
-                        loader: 'html-loader',
-                        options: { minimize: false }
-                    }
-                ]
-            },
             {
                 test: /\.(?:ico|gif|png|jpg|jpeg|svg)$/i,
                 type: 'asset/resource'
@@ -87,13 +92,32 @@ module.exports = ({ development }) => ({
             },
             {
                 test: /\.s[ac]ss$/i,
-                use: ['style-loader', 'css-loader', 'sass-loader']
+                use: [
+                    isDev ? 'style-loader' : MiniCssExtractPlugin.loader,
+                    'css-loader',
+                    'sass-loader'
+                ]
             }
         ]
     },
-
+    devServer: {
+        open: true,
+        hot: true,
+        liveReload: true,
+        port: 8080,
+        static: {
+            directory: path.join(__dirname, 'dist'),
+            watch: true
+        },
+        watchFiles: [
+            'src/**/*.html',
+            'src/**/*.scss',
+            'src/**/*.js'
+        ],
+        historyApiFallback: true
+    },
     resolve: {
         extensions: ['.js']
-    },
-    ...devServer(development)
-});
+    }
+  };
+};
