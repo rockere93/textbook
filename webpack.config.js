@@ -6,8 +6,9 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
-// Функция для генерации плагинов с учетом режима
-const generatePlugins = (isDev) => {
+
+
+const generatePages = (isDev) => {
   const pages = ['html', 'about'];
   
   return pages.map(page => {
@@ -44,7 +45,7 @@ const generatePlugins = (isDev) => {
     `;
 
     return new HtmlWebpackPlugin({
-      filename: `${page}.html`,
+      filename: `pages/${page}.html`,
       templateContent: tempTemplate,
       chunks: ['main'],
       inject: true,
@@ -71,7 +72,14 @@ module.exports = (env) => {
         new MiniCssExtractPlugin({ 
             filename: isDev ? '[name].css' : '[name].[contenthash].css'
         }),
-        ...generatePlugins(isDev),
+        new HtmlWebpackPlugin({
+      filename: `index.html`,
+      template: 'src/index.html',
+      chunks: ['main'],
+      inject: true,
+      minify: !isDev
+    }),
+        ...generatePages(isDev),
         new CopyPlugin({
             patterns: [{
                 from: 'public',
