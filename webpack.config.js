@@ -13,43 +13,24 @@ const generatePages = (isDev) => {
   
   return pages.map(page => {
     const templatePathContent = path.resolve(__dirname, `src/pages/${page}.html`);
-    const templatePathHeader = path.resolve(__dirname, 'src/templates/header.html');
-    const templatePathFooter = path.resolve(__dirname, 'src/templates/footer.html');
 
     if (!fs.existsSync(templatePathContent)) {
       console.warn(`Template ${templatePathContent} not found!`);
       return null;
     }
-    
-    const pageContent = fs.readFileSync(templatePathContent, 'utf-8');
-    const pageHeader = fs.readFileSync(templatePathHeader, 'utf-8');
-    const pageFooter = fs.readFileSync(templatePathFooter, 'utf-8');
-    const title = page.charAt(0).toUpperCase() + page.slice(1);
-    
-    const tempTemplate = `
-      <!DOCTYPE html>
-      <html lang="ru">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${title}</title>
-      </head>
-      <body>
-          ${pageHeader}
-          <main>
-              ${pageContent}
-          </main>
-          ${pageFooter}
-      </body>
-      </html>
-    `;
 
     return new HtmlWebpackPlugin({
       filename: `pages/${page}.html`,
-      templateContent: tempTemplate,
+      template: 'src/templates/index.ejs',
+      cache: true,
       chunks: ['main'],
       inject: true,
-      minify: !isDev
+      minify: !isDev,
+      templateParameters: {
+        header: fs.readFileSync('src/templates/header.html', 'utf8'),
+        content: fs.readFileSync(templatePathContent, 'utf8'),
+        footer: fs.readFileSync('src/templates/footer.html', 'utf8')
+      }
     });
   }).filter(Boolean);
 };
@@ -86,7 +67,7 @@ module.exports = (env) => {
                 noErrorOnMissing: true
             }]
         }),
-        ...(isDev ? [] : [new CleanWebpackPlugin({ cleanStaleWebpackAssets: false })])
+        new CleanWebpackPlugin()
     ],
     module: {
         rules: [
@@ -120,6 +101,7 @@ module.exports = (env) => {
         watchFiles: [
             'src/**/*.html',
             'src/**/*.scss',
+            'src/**/*.ejs',
             'src/**/*.js'
         ],
         historyApiFallback: true
